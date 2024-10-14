@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.15
+// @version      1.16
 // @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
@@ -15,6 +15,7 @@
 //Update 1.13: Fixed bug with text boxes not letting you type in them without holding left-click.
 //Update 1.14: Rewrote entire code to fix bugs.
 //Update 1.15: Fixes to pasting
+//Update 1.16: Adds table column sorting
 
 (function() {
     'use strict';
@@ -25,29 +26,34 @@
         .selected {
             background-color: #d1e7dd !important; /* Light green background for selection */
         }
+        th.sortable:hover {
+            cursor: pointer;
+            background-color: #f0f0f0;
+        }
     `;
     document.head.append(style);
 
-    // Variables for cell selection
     let selecting = false;
 
-    // Start selecting on mouse down
+    // Handle cell selection
     document.addEventListener('mousedown', (e) => {
-        if (e.target.tagName === 'TD' || e.target.tagName === 'TH') {
+        const cell = findTableCell(e.target);
+        if (cell) {
             selecting = true;
-            toggleCellSelection(e.target);
+            toggleCellSelection(cell);
             e.preventDefault();
         }
     });
 
-    // Continue selecting cells on mouse over
     document.addEventListener('mouseover', (e) => {
-        if (selecting && (e.target.tagName === 'TD' || e.target.tagName === 'TH')) {
-            toggleCellSelection(e.target);
+        if (selecting) {
+            const cell = findTableCell(e.target);
+            if (cell) {
+                toggleCellSelection(cell);
+            }
         }
     });
 
-    // Stop selecting on mouse up
     document.addEventListener('mouseup', () => {
         selecting = false;
     });
@@ -55,6 +61,16 @@
     // Toggle cell selection
     function toggleCellSelection(cell) {
         cell.classList.toggle('selected');
+    }
+
+    // Find the table cell from the event target
+    function findTableCell(element) {
+        if (element.tagName === 'TD' || element.tagName === 'TH') {
+            return element;
+        } else if (element.closest('td') || element.closest('th')) {
+            return element.closest('td') || element.closest('th');
+        }
+        return null;
     }
 
     // Copy selected cells to clipboard
@@ -75,12 +91,12 @@
 
                 // Construct the clipboard string
                 const clipboardText = Object.values(rows).map(row =>
-                    row.filter(cell => cell !== undefined).join('\t') // Use tab as a separator
+                    row.filter(cell => cell !== undefined).join('\t') // Tab-separated values
                 ).join('\n');
 
                 // Copy to clipboard
                 navigator.clipboard.writeText(clipboardText).then(() => {
-                    console.log('Table cells copied to clipboard!');
+                    alert('Table cells copied to clipboard!');
                 }).catch(err => {
                     console.error('Could not copy text: ', err);
                 });
@@ -94,5 +110,75 @@
             document.querySelectorAll('.selected').forEach(cell => cell.classList.remove('selected'));
         }
     });
-})();
 
+    // Make tables sortable
+    function makeTablesSortable() {
+        const tables = document.querySelectorAll('table');
+
+        tables.forEach(table => {
+            const headers = table.querySelectorAll('th');
+            headers.forEach((header, index) => {
+                if (!header.classList.contains('sortable')) {
+                    header.classList.add('sortable'); // Add sortable class for styling
+                    let sortDirection = 'asc'; // Default sorting direction
+
+                    // Attach a click event listener to the header to sort the column
+                    header.addEventListener('click', () => {
+                        sortTable(table, index, sortDirection);
+                        sortDirection = (sortDirection === 'asc') ? 'desc' : 'asc'; // Toggle sorting direction
+                        updateSortIndicators(header, sortDirection);
+                    });
+                }
+            });
+        });
+    }
+
+    // Update sorting indicators on the header (add/remove arrow)
+    function updateSortIndicators(header, direction) {
+        const allHeaders = header.parentElement.querySelectorAll('th');
+        allHeaders.forEach(th => {
+            th.textContent = th.textContent.replace(/▲|▼/g, ''); // Remove any existing arrows
+        });
+        header.textContent += direction === 'asc' ? ' ▲' : ' ▼'; // Add the appropriate arrow
+    }
+
+    // Sort a table by a specific column
+    function sortTable(table, colIndex, direction) {
+        const rowsArray = Array.from(table.rows).slice(1); // Exclude the header row
+
+        rowsArray.sort((rowA, rowB) => {
+            const cellA = rowA.cells[colIndex]?.textContent.trim() || '';
+            const cellB = rowB.cells[colIndex]?.textContent.trim() || '';
+
+            // Detect if the cell contains a number and sort accordingly
+            const numA = parseFloat(cellA.replace(/[^0-9.-]/g, ''));
+            const numB = parseFloat(cellB.replace(/[^0-9.-]/g, ''));
+
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return direction === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // Compare as strings for non-numeric values
+            return direction === 'asc' ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+        });
+
+        // Reorder the rows in the table based on the sorted array
+        rowsArray.forEach(row => table.appendChild(row));
+    }
+
+    // Observe dynamic changes to the DOM and reapply sorting functionality
+    const observer = new MutationObserver(() => {
+        makeTablesSortable();
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    // Run the script when the page is fully loaded
+    window.addEventListener('load', () => {
+        makeTablesSortable();
+    });
+
+})();
