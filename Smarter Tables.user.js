@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.16
+// @version      1.17
 // @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
@@ -16,6 +16,7 @@
 //Update 1.14: Rewrote entire code to fix bugs.
 //Update 1.15: Fixes to pasting
 //Update 1.16: Adds table column sorting
+//Update 1.17: Fixes sorting buggie wuggies
 
 (function() {
     'use strict';
@@ -94,10 +95,8 @@
                     row.filter(cell => cell !== undefined).join('\t') // Tab-separated values
                 ).join('\n');
 
-                // Copy to clipboard
-                navigator.clipboard.writeText(clipboardText).then(() => {
-                    alert('Table cells copied to clipboard!');
-                }).catch(err => {
+                // Copy to clipboard without alert
+                navigator.clipboard.writeText(clipboardText).catch(err => {
                     console.error('Could not copy text: ', err);
                 });
             }
@@ -142,7 +141,7 @@
         header.textContent += direction === 'asc' ? ' ▲' : ' ▼'; // Add the appropriate arrow
     }
 
-    // Sort a table by a specific column
+    // Sorting function for full string patterns
     function sortTable(table, colIndex, direction) {
         const rowsArray = Array.from(table.rows).slice(1); // Exclude the header row
 
@@ -150,15 +149,11 @@
             const cellA = rowA.cells[colIndex]?.textContent.trim() || '';
             const cellB = rowB.cells[colIndex]?.textContent.trim() || '';
 
-            // Detect if the cell contains a number and sort accordingly
-            const numA = parseFloat(cellA.replace(/[^0-9.-]/g, ''));
-            const numB = parseFloat(cellB.replace(/[^0-9.-]/g, ''));
+            // Handle empty cells by placing them at the end
+            if (!cellA && cellB) return direction === 'asc' ? 1 : -1;
+            if (!cellB && cellA) return direction === 'asc' ? -1 : 1;
 
-            if (!isNaN(numA) && !isNaN(numB)) {
-                return direction === 'asc' ? numA - numB : numB - numA;
-            }
-
-            // Compare as strings for non-numeric values
+            // Compare the entire strings lexicographically
             return direction === 'asc' ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
         });
 
