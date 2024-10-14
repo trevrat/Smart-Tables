@@ -1,132 +1,74 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.11
-// @description  Interact with tables like an Excel sheet, copy in tab-separated format, manage column visibility via context menu, and select cells with rectangular selection
+// @version      1.12
+// @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
 // @grant        none
+// @updateURL    https://github.com/trevrat/Smart-Tables/blob/main/Smarter%20Tables-1.12.user.js
+// @downloadURL  https://github.com/trevrat/Smart-Tables/blob/main/Smarter%20Tables-1.12.user.js
 // ==/UserScript==
 
-// Update 1.11: When you click and hold the mouse, then drag diagonally, it will select all cells within the rectangular area formed by your drag.
+//Update 1.11: Added click and drag funtion to highlight multiple cells at a time.
+//Update 1.12: Added Ctrl-Click fuction to click and drag multiple selections of cells at a time.
+
 (function() {
     'use strict';
 
     let isMouseDown = false;
     let startCell = null;
 
-    // Create context menu
-    const contextMenu = document.createElement('div');
-    contextMenu.style.position = 'absolute';
-    contextMenu.style.zIndex = '1000';
-    contextMenu.style.backgroundColor = 'white';
-    contextMenu.style.border = '1px solid black';
-    contextMenu.style.padding = '5px';
-    contextMenu.style.display = 'none'; // Initially hidden
-    document.body.appendChild(contextMenu);
-
-    // Option to hide column
-    const hideOption = document.createElement('div');
-    hideOption.textContent = 'Hide Column';
-    hideOption.style.cursor = 'pointer';
-    hideOption.addEventListener('click', () => {
-        if (startCell) {
-            const index = Array.from(startCell.parentNode.children).indexOf(startCell);
-            const cells = document.querySelectorAll(`td:nth-child(${index + 1}), th:nth-child(${index + 1})`);
-            cells.forEach(cell => {
-                cell.style.display = 'none'; // Hide the column
-            });
-        }
-        contextMenu.style.display = 'none'; // Hide context menu
-    });
-    contextMenu.appendChild(hideOption);
-
-    // Option to show all hidden columns
-    const showAllOption = document.createElement('div');
-    showAllOption.textContent = 'Show All Columns';
-    showAllOption.style.cursor = 'pointer';
-    showAllOption.addEventListener('click', () => {
-        const allCells = document.querySelectorAll('td, th');
-        allCells.forEach(cell => {
-            cell.style.display = ''; // Show all columns
-        });
-        contextMenu.style.display = 'none'; // Hide context menu
-    });
-    contextMenu.appendChild(showAllOption);
-
-    // Show the context menu on right-click
-    document.addEventListener('contextmenu', (e) => {
-        if (e.target.tagName === 'TH') {
-            e.preventDefault(); // Prevent default context menu
-            startCell = e.target; // Store the last clicked header
-            contextMenu.style.left = `${e.pageX}px`;
-            contextMenu.style.top = `${e.pageY}px`;
-            contextMenu.style.display = 'block'; // Show the custom context menu
-        } else {
-            contextMenu.style.display = 'none'; // Hide if right-clicked elsewhere
-        }
-    });
-
-    // Hide the context menu on click anywhere else
-    document.addEventListener('click', () => {
-        contextMenu.style.display = 'none';
-    });
-
     // Add event listeners for mouse events
     document.addEventListener('mousedown', function(e) {
         const target = e.target;
 
-        if (target.tagName === 'TD' || target.tagName === 'TH') {
+        if ((target.tagName === 'TD' || target.tagName === 'TH') && e.button === 0) {
             isMouseDown = true;
             startCell = target;
-            toggleCellSelection(target);
+
+            if (!e.ctrlKey) {
+                clearSelection(); // Only clear selection if Ctrl is not held down
+            }
+
+            target.classList.toggle('selected'); // Toggle selection for the clicked cell
             e.preventDefault(); // Prevent text selection
         }
     });
 
-    document.addEventListener('mousemove', function(e) {
-        if (isMouseDown) {
-            const target = e.target;
-            if (target.tagName === 'TD' || target.tagName === 'TH') {
-                // Get the starting and current cell coordinates
-                const startCellCoords = startCell.getBoundingClientRect();
-                const targetCellCoords = target.getBoundingClientRect();
-
-                const minX = Math.min(startCellCoords.left, targetCellCoords.left);
-                const maxX = Math.max(startCellCoords.right, targetCellCoords.right);
-                const minY = Math.min(startCellCoords.top, targetCellCoords.top);
-                const maxY = Math.max(startCellCoords.bottom, targetCellCoords.bottom);
-
-                // Deselect all cells first
-                deselectAllCells();
-
-                // Select cells within the rectangular area
-                const allCells = document.querySelectorAll('td, th');
-                allCells.forEach(cell => {
-                    const cellCoords = cell.getBoundingClientRect();
-                    if (
-                        cellCoords.left >= minX &&
-                        cellCoords.right <= maxX &&
-                        cellCoords.top >= minY &&
-                        cellCoords.bottom <= maxY
-                    ) {
-                        toggleCellSelection(cell);
-                    }
-                });
-            }
+    document.addEventListener('mouseover', function(e) {
+        if (isMouseDown && (e.target.tagName === 'TD' || e.target.tagName === 'TH')) {
+            let endCell = e.target;
+            selectRectangle(startCell, endCell); // Select the rectangle formed by start and end cells
         }
     });
 
     document.addEventListener('mouseup', function() {
         isMouseDown = false;
+        startCell = null;
         updateClipboard();
     });
 
-    function toggleCellSelection(cell) {
-        cell.classList.toggle('selected');
+    function selectRectangle(startCell, endCell) {
+        let startRow = startCell.parentElement.rowIndex;
+        let startCol = startCell.cellIndex;
+        let endRow = endCell.parentElement.rowIndex;
+        let endCol = endCell.cellIndex;
+
+        let rowStart = Math.min(startRow, endRow);
+        let rowEnd = Math.max(startRow, endRow);
+        let colStart = Math.min(startCol, endCol);
+        let colEnd = Math.max(startCol, endCol);
+
+        for (let row = rowStart; row <= rowEnd; row++) {
+            let rowCells = startCell.parentElement.parentElement.rows[row].cells;
+            for (let col = colStart; col <= colEnd; col++) {
+                rowCells[col].classList.add('selected');
+            }
+        }
     }
 
-    function deselectAllCells() {
+    function clearSelection() {
         const selectedCells = document.querySelectorAll('td.selected, th.selected');
         selectedCells.forEach(cell => {
             cell.classList.remove('selected');
