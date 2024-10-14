@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.12
+// @version      1.13
 // @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
@@ -12,68 +12,97 @@
 
 //Update 1.11: Added click and drag funtion to highlight multiple cells at a time.
 //Update 1.12: Added Ctrl-Click fuction to click and drag multiple selections of cells at a time.
+//Update 1.13: Fixed bug with text boxes not letting you type in them without holding left-click.
 
 (function() {
     'use strict';
 
     let isMouseDown = false;
-    let startCell = null;
+    let lastClickedHeader = null;
+
+    // Create context menu
+    const contextMenu = document.createElement('div');
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.zIndex = '1000';
+    contextMenu.style.backgroundColor = 'white';
+    contextMenu.style.border = '1px solid black';
+    contextMenu.style.padding = '5px';
+    contextMenu.style.display = 'none'; // Initially hidden
+    document.body.appendChild(contextMenu);
+
+    // Option to hide column
+    const hideOption = document.createElement('div');
+    hideOption.textContent = 'Hide Column';
+    hideOption.style.cursor = 'pointer';
+    hideOption.addEventListener('click', () => {
+        if (lastClickedHeader) {
+            const index = Array.from(lastClickedHeader.parentNode.children).indexOf(lastClickedHeader);
+            const cells = document.querySelectorAll(`td:nth-child(${index + 1}), th:nth-child(${index + 1})`);
+            cells.forEach(cell => {
+                cell.style.display = 'none'; // Hide the column
+            });
+        }
+        contextMenu.style.display = 'none'; // Hide context menu
+    });
+    contextMenu.appendChild(hideOption);
+
+    // Option to show all hidden columns
+    const showAllOption = document.createElement('div');
+    showAllOption.textContent = 'Show All Columns';
+    showAllOption.style.cursor = 'pointer';
+    showAllOption.addEventListener('click', () => {
+        const allCells = document.querySelectorAll('td, th');
+        allCells.forEach(cell => {
+            cell.style.display = ''; // Show all columns
+        });
+        contextMenu.style.display = 'none'; // Hide context menu
+    });
+    contextMenu.appendChild(showAllOption);
+
+    // Show the context menu on right-click
+    document.addEventListener('contextmenu', (e) => {
+        if (e.target.tagName === 'TH') {
+            e.preventDefault(); // Prevent default context menu
+            lastClickedHeader = e.target; // Store the last clicked header
+            contextMenu.style.left = `${e.pageX}px`;
+            contextMenu.style.top = `${e.pageY}px`;
+            contextMenu.style.display = 'block'; // Show the custom context menu
+        } else {
+            contextMenu.style.display = 'none'; // Hide if right-clicked elsewhere
+        }
+    });
+
+    // Hide the context menu on click anywhere else
+    document.addEventListener('click', () => {
+        contextMenu.style.display = 'none';
+    });
 
     // Add event listeners for mouse events
     document.addEventListener('mousedown', function(e) {
         const target = e.target;
 
-        if ((target.tagName === 'TD' || target.tagName === 'TH') && e.button === 0) {
+        // Ignore input elements, text areas, and other interactive elements
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+            return; // Allow normal text box functionality
+        }
+
+        if (target.tagName === 'TD' || target.tagName === 'TH') {
             isMouseDown = true;
-            startCell = target;
-
-            if (!e.ctrlKey) {
-                clearSelection(); // Only clear selection if Ctrl is not held down
-            }
-
-            target.classList.toggle('selected'); // Toggle selection for the clicked cell
-            e.preventDefault(); // Prevent text selection
+            target.classList.toggle('selected');
+            e.preventDefault(); // Prevent text selection for table cells
         }
     });
 
     document.addEventListener('mouseover', function(e) {
         if (isMouseDown && (e.target.tagName === 'TD' || e.target.tagName === 'TH')) {
-            let endCell = e.target;
-            selectRectangle(startCell, endCell); // Select the rectangle formed by start and end cells
+            e.target.classList.add('selected');
         }
     });
 
     document.addEventListener('mouseup', function() {
         isMouseDown = false;
-        startCell = null;
         updateClipboard();
     });
-
-    function selectRectangle(startCell, endCell) {
-        let startRow = startCell.parentElement.rowIndex;
-        let startCol = startCell.cellIndex;
-        let endRow = endCell.parentElement.rowIndex;
-        let endCol = endCell.cellIndex;
-
-        let rowStart = Math.min(startRow, endRow);
-        let rowEnd = Math.max(startRow, endRow);
-        let colStart = Math.min(startCol, endCol);
-        let colEnd = Math.max(startCol, endCol);
-
-        for (let row = rowStart; row <= rowEnd; row++) {
-            let rowCells = startCell.parentElement.parentElement.rows[row].cells;
-            for (let col = colStart; col <= colEnd; col++) {
-                rowCells[col].classList.add('selected');
-            }
-        }
-    }
-
-    function clearSelection() {
-        const selectedCells = document.querySelectorAll('td.selected, th.selected');
-        selectedCells.forEach(cell => {
-            cell.classList.remove('selected');
-        });
-    }
 
     function updateClipboard() {
         const selectedCells = document.querySelectorAll('td.selected, th.selected');
@@ -123,3 +152,4 @@
     `;
     document.head.appendChild(style);
 })();
+
