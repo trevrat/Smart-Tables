@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.14
+// @version      1.15
 // @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
@@ -13,6 +13,8 @@
 //Update 1.11: Added click and drag funtion to highlight multiple cells at a time.
 //Update 1.12: Added Ctrl-Click fuction to click and drag multiple selections of cells at a time.
 //Update 1.13: Fixed bug with text boxes not letting you type in them without holding left-click.
+//Update 1.14: Rewrote entire code to fix bugs.
+//Update 1.15: Fixes to pasting
 
 (function() {
     'use strict';
