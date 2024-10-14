@@ -77,18 +77,16 @@
         contextMenu.style.display = 'none';
     });
 
-    // Add event listeners for mouse events
+    // Add event listeners for mouse events, but exclude input elements
     document.addEventListener('mousedown', function(e) {
         const target = e.target;
 
-        // Only process table cells (TD and TH), exclude text areas, input elements, etc.
-        if (target.tagName !== 'TD' && target.tagName !== 'TH') {
-            return; // Do not interfere with text boxes, input fields, etc.
+        // Only process table cells (TD and TH), exclude text areas, input elements, and other interactive elements
+        if (target.tagName === 'TD' || target.tagName === 'TH') {
+            isMouseDown = true;
+            target.classList.toggle('selected');
+            e.preventDefault(); // Prevent text selection for table cells
         }
-
-        isMouseDown = true;
-        target.classList.toggle('selected');
-        e.preventDefault(); // Prevent text selection for table cells
     });
 
     document.addEventListener('mouseover', function(e) {
