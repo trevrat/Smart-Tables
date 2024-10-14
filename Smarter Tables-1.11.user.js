@@ -7,9 +7,7 @@
 // @match        *://*/*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/trevrat/Smart-Tables/main/Smarter%20Tables-1.11.user.js
-
 // @downloadURL  https://raw.githubusercontent.com/trevrat/Smart-Tables/main/Smarter%20Tables-1.11.user.js
-
 // ==/UserScript==
 
 //Update 1.11: Added click and drag funtion to highlight multiple cells at a time.
