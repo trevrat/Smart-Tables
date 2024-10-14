@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.13
+// @version      1.14
 // @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/trevrat/Smart-Tables/main/Smarter%20Tables-1.11.user.js
-// @downloadURL  https://raw.githubusercontent.com/trevrat/Smart-Tables/main/Smarter%20Tables-1.11.user.js
+// @updateURL    https://raw.githubusercontent.com/trevrat/Smart-Tables/main/Smarter%20Tables.user.js
+// @downloadURL  https://raw.githubusercontent.com/trevrat/Smart-Tables/main/Smarter%20Tables.user.js
 // ==/UserScript==
 
 //Update 1.11: Added click and drag funtion to highlight multiple cells at a time.
