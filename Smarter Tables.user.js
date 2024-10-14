@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.17
+// @version      1.18
 // @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
@@ -17,6 +17,7 @@
 //Update 1.15: Fixes to pasting
 //Update 1.16: Adds table column sorting
 //Update 1.17: Fixes sorting buggie wuggies
+//Update 1.18: Removed highlighting of column header
 
 (function() {
     'use strict';
@@ -39,7 +40,7 @@
     // Handle cell selection
     document.addEventListener('mousedown', (e) => {
         const cell = findTableCell(e.target);
-        if (cell) {
+        if (cell && cell.tagName === 'TD') { // Only allow selection of TD cells
             selecting = true;
             toggleCellSelection(cell);
             e.preventDefault();
@@ -49,7 +50,7 @@
     document.addEventListener('mouseover', (e) => {
         if (selecting) {
             const cell = findTableCell(e.target);
-            if (cell) {
+            if (cell && cell.tagName === 'TD') { // Only allow selection of TD cells
                 toggleCellSelection(cell);
             }
         }
@@ -122,7 +123,9 @@
                     let sortDirection = 'asc'; // Default sorting direction
 
                     // Attach a click event listener to the header to sort the column
-                    header.addEventListener('click', () => {
+                    header.addEventListener('click', (e) => {
+                        // Prevent selection if header is clicked
+                        e.stopPropagation();
                         sortTable(table, index, sortDirection);
                         sortDirection = (sortDirection === 'asc') ? 'desc' : 'asc'; // Toggle sorting direction
                         updateSortIndicators(header, sortDirection);
