@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.18
+// @version      1.19
 // @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
@@ -18,6 +18,7 @@
 //Update 1.16: Adds table column sorting
 //Update 1.17: Fixes sorting buggie wuggies
 //Update 1.18: Removed highlighting of column header
+//Update 1.19: Added Rack counter
 
 (function() {
     'use strict';
@@ -164,7 +165,30 @@
         rowsArray.forEach(row => table.appendChild(row));
     }
 
-    // Observe dynamic changes to the DOM and reapply sorting functionality
+    // Function to add row count to each <h5> header
+    function addRowCountToHeaders() {
+        const headers = document.querySelectorAll('h5'); // Select all <h5> headers
+        headers.forEach(header => {
+            // Find the next sibling table element after the <h5> header
+            const table = header.nextElementSibling;
+            if (table && table.tagName === 'TABLE') {
+                // Count <td> rows only, dividing by cells per row
+                const rowCount = table.querySelectorAll('td').length / table.rows[0].cells.length;
+                const racksText = ` (${Math.round(rowCount)} Racks)`;
+
+                // Remove any existing rack count text to avoid duplicates
+                header.textContent = header.textContent.replace(/\(\d+ Racks\)/, '').trim();
+
+                // Append new row count to <h5>
+                header.textContent += racksText;
+            }
+        });
+    }
+
+    // Set an interval to update row counts every 15 seconds
+    setInterval(addRowCountToHeaders, 15000); // 15000ms = 15 seconds
+
+    // Observe dynamic changes to the DOM and reapply functions as needed
     const observer = new MutationObserver(() => {
         makeTablesSortable();
     });
@@ -176,7 +200,8 @@
 
     // Run the script when the page is fully loaded
     window.addEventListener('load', () => {
-        makeTablesSortable();
+        makeTablesSortable(); // Existing sortable tables function
+        addRowCountToHeaders(); // Initial call to add row counts to <h5> headers
     });
 
 })();
