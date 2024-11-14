@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Smarter Tables
 // @namespace    http://tampermonkey.net/
-// @version      1.19
+// @version      1.20
 // @description  Interact with tables like an Excel sheet, copy in tab-separated format, and manage column visibility via context menu
 // @author       trevrat
 // @match        *://*/*
@@ -19,7 +19,7 @@
 //Update 1.17: Fixes sorting buggie wuggies
 //Update 1.18: Removed highlighting of column header
 //Update 1.19: Added Rack counter
-
+//Update 1.20: Fixed bug where you couldn't use Ctrl+C on anything but selected Cells
 (function() {
     'use strict';
 
@@ -79,9 +79,9 @@
     // Copy selected cells to clipboard
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.key === 'c') {
-            e.preventDefault();
             const selectedCells = document.querySelectorAll('.selected');
-            if (selectedCells.length > 0) {
+            if (selectedCells.length > 0) { // Only intercept if there are selected cells
+                e.preventDefault();
                 const rows = {};
                 selectedCells.forEach(cell => {
                     const rowIndex = cell.parentElement.rowIndex;
@@ -94,8 +94,8 @@
 
                 // Construct the clipboard string
                 const clipboardText = Object.values(rows).map(row =>
-                    row.filter(cell => cell !== undefined).join('\t') // Tab-separated values
-                ).join('\n');
+                                                              row.filter(cell => cell !== undefined).join('\t') // Tab-separated values
+                                                             ).join('\n');
 
                 // Copy to clipboard without alert
                 navigator.clipboard.writeText(clipboardText).catch(err => {
@@ -104,6 +104,7 @@
             }
         }
     });
+
 
     // Clear selection when clicking outside the table
     document.addEventListener('click', (e) => {
